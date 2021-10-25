@@ -20,13 +20,13 @@ def getChannelInfo(channelId):
         "channel_url": channel_detail_dict.get('dashWidewinePlayUrl', ''),
         "channel_entitlements": channel_detail_dict.get('entitlements', ''),
         "channel_logo": channel_meta.get('logo', ''),
-        "channel_genre": channel_meta.get('primaryGenre', '')
+        "channel_genre": channel_meta.get('genre', '')
     }
     channel_list.append(onechannl)
 
 
 def saveChannelsToFile():
-    new_channel_list = sorted(channel_list, key = lambda i: i['channel_id'])
+    new_channel_list = sorted(channel_list, key = lambda i: i['channel_id'])        #sort by channel id
     print(len(channel_list))
     print(len(new_channel_list))
     with open("allChannels.json", "w") as channel_list_file:
