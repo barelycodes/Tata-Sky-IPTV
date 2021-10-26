@@ -11,18 +11,20 @@ channel_list = []
 def getChannelInfo(channelId):
     url = "{}content-detail/pub/api/v2/channels/{}".format(API_BASE_URL, channelId)
     x = requests.get(url)
+    data_meta = x.json()['data']['meta']
     channel_meta = x.json()['data']['channelMeta']
     channel_detail_dict = x.json()['data']['detail']
-    onechannl = {
-        "channel_id": str(channelId),
-        "channel_name": channel_meta.get('name', ''),
-        "channel_license_url": channel_detail_dict.get('dashWidewineLicenseUrl', ''),
-        "channel_url": channel_detail_dict.get('dashWidewinePlayUrl', ''),
-        "channel_entitlements": channel_detail_dict.get('entitlements', ''),
-        "channel_logo": channel_meta.get('logo', ''),
-        "channel_genre": channel_meta.get('genre', '')
-    }
-    channel_list.append(onechannl)
+    if data_meta:                                                                   #skips if meta is empty
+        onechannl = {
+            "channel_id": str(channelId),
+            "channel_name": channel_meta.get('name', ''),
+            "channel_license_url": channel_detail_dict.get('dashWidewineLicenseUrl', ''),
+            "channel_url": channel_detail_dict.get('dashWidewinePlayUrl', ''),
+            "channel_entitlements": channel_detail_dict.get('entitlements', ''),
+            "channel_logo": channel_meta.get('logo', ''),
+            "channel_genre": channel_meta.get('genre', '')
+        }
+        channel_list.append(onechannl)
 
 
 def saveChannelsToFile():
@@ -34,7 +36,7 @@ def saveChannelsToFile():
         channel_list_file.close()
 
 
-def processChnuks(channel_lists):
+def processChnuks(channel_list):
     try:
         for channel in channel_list:
             print("Getting channelId:{}".format(channel.get('id', '')))
