@@ -1,6 +1,7 @@
 import login
 import utils
 import jwtoken as jwt
+import subprocess
 
 while True:
     try:
@@ -49,7 +50,7 @@ while True:
             print("You may see a lot of lines being printed, you may ignore it")
             print("The generated m3u will be saved as allChannelPlaylist.m3u under the code_samples directory")
             print("************************************")
-            utils.m3ugen()
+            subprocess.call(['python', 'utils.py'])
         else:
             print("Please login with options 1 or 2 before generating playlist")
     elif ch == 4:
