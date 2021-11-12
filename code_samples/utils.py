@@ -1,17 +1,20 @@
 import jwtoken
+import asyncio
+import aiohttp
+from aiohttp import ClientSession
+#import time
 
-m3ustr = '#EXTM3U    x-tvg-url="http://botallen.live/epg.xml.gz" \n\n'
-kodiPropLicenseType = "#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha"
+#start_time = time.time()
 
 
-def processTokenChunks(channelList):
-    global m3ustr
-    kodiPropLicenseUrl = ""
-    if not channelList:
-        print("Channel List is empty ..Exiting")
-        exit(1)
-    for channel in channelList:
-        ls_session_key = jwtoken.generateJWT(channel['channel_id'], iterative=False)
+def m3u_from_response(response, channel):
+    m3ustr = ''
+    kodiPropLicenseType = "#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha"
+    kodiPropLicenseUrl = ''
+    
+    ls_session_key = response.get('data')['token']
+    
+    for item in response:
         if ls_session_key != "":
             licenseUrl = channel['channel_license_url'] + "&ls_session=" + ls_session_key
             kodiPropLicenseUrl = "#KODIPROP:inputstream.adaptive.license_key=" + licenseUrl
@@ -21,26 +24,43 @@ def processTokenChunks(channelList):
             print('Continuing...Please get license manually for channel :', channel['channel_name'])
         m3ustr += "#EXTINF:-1  " + "tvg-id=ts" + channel['channel_id'] + "  tvg-logo=" + channel['channel_logo'] + "   group-title=" + channel['channel_genre'][0] + ",   "
         m3ustr += channel['channel_name'] + "\n" + kodiPropLicenseType + "\n" + kodiPropLicenseUrl + "\n" + channel['channel_url'] + "\n\n"
-        print(channel['channel_id'])
+        #print(channel['channel_id'])
+        return m3ustr
 
 
-def m3ugen():
-    ts = []
-    global m3ustr
+async def processTokenChunks(sem, channel, session):
+    try:
+        response = await jwtoken.generateJWT(sem, channel['channel_id'], session)
+        parsed_response = m3u_from_response(response, channel)
+        return parsed_response
+    except Exception as err:
+        print(f"Exception occured: {err}")
+
+
+async def m3ugen():
+    tc = '#EXTM3U    x-tvg-url="http://botallen.live/epg.xml.gz" \n\n'
+    
     channelList = jwtoken.getUserChannelSubscribedList()
-    for i in range(len(channelList)):
-        t = processTokenChunks(channelList[i:i + 1])
-        ts.append(t)
-
+    #print("Found total {0} channels subscribed by user".format(len(channelList)))
+    
+    sem = asyncio.Semaphore(100)
+    
+    async with ClientSession() as session:
+        data = await asyncio.gather(*[processTokenChunks(sem, channel, session) for channel in channelList])
+        for item in data:
+            tc += item
+            
     print("================================================================")
     print("Found total {0} channels subscribed by user \nSaving them to m3u file".format(len(channelList)))
     print("================================================================")
-    saveM3ustringtofile(m3ustr)
+
+    saveM3ustringtofile(tc)
 
 
-def saveM3ustringtofile(m3ustr):
+def saveM3ustringtofile(tc):
     with open("allChannelPlaylist.m3u", "w") as allChannelPlaylistFile:
-        allChannelPlaylistFile.write(m3ustr)
+        allChannelPlaylistFile.write(tc)
+        #print("Saved to file " + allChannelPlaylistFile.name)
 
 
 def getPrintNote():
@@ -55,4 +75,6 @@ def getPrintNote():
 
 
 if __name__ == '__main__':
-    m3ugen()
+    #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(m3ugen())
+    #print("Completed in - %s seconds" % (time.time() - start_time))
