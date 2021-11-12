@@ -1,22 +1,25 @@
-### Script to get all channels from tata sky
-import threading
 import requests
-import json as json
+import aiohttp
+import asyncio
+import json
+from aiohttp import ClientSession
+import time
+
+start_time = time.time()
 
 API_BASE_URL = "https://kong-tatasky.videoready.tv/"
 
-channel_list = []
+clist = []
 
 
-def getChannelInfo(channelId):
-    url = "{}content-detail/pub/api/v2/channels/{}".format(API_BASE_URL, channelId)
-    x = requests.get(url)
-    data_meta = x.json()['data']['meta']
-    channel_meta = x.json()['data']['channelMeta']
-    channel_detail_dict = x.json()['data']['detail']
-    if data_meta:                                                                   #skips if meta is empty
-        onechannl = {
-            "channel_id": str(channelId),
+def extract_fields_from_response(response, channel):
+    data_meta = response.get('data')['meta']
+    channel_meta = response.get('data')['channelMeta']
+    channel_detail_dict = response.get('data')['detail']
+    
+    if data_meta:
+        onechannel = {
+            "channel_id": str(channel),
             "channel_name": channel_meta.get('name', ''),
             "channel_license_url": channel_detail_dict.get('dashWidewineLicenseUrl', ''),
             "channel_url": channel_detail_dict.get('dashWidewinePlayUrl', ''),
@@ -24,44 +27,62 @@ def getChannelInfo(channelId):
             "channel_logo": channel_meta.get('logo', ''),
             "channel_genre": channel_meta.get('genre', '')
         }
-        channel_list.append(onechannl)
+        return (onechannel)
+    else:
+        print("Exception on Channel " + str(channel))
+        
+
+async def getchannelinfo(channel, session):
+    url = "{}content-detail/pub/api/v2/channels/{}".format(API_BASE_URL, channel)
+    try:
+        response = await session.request(method='GET', url=url)
+        #response.raise_for_status()
+        #print(f"Response status ({url}): {response.status}")
+    
+    except Exception as err:
+        print(f"An error ocurred: {err}")
+    response_json = await response.json()
+    return response_json
+
+
+async def getChunks(channel, session):
+    try:
+        response = await getchannelinfo(channel, session)
+        parsed_response = extract_fields_from_response(response, channel)
+        return parsed_response
+    except Exception as err:
+        print(f"Exception occured: {err}")
 
 
 def saveChannelsToFile():
-    new_channel_list = sorted(channel_list, key = lambda i: i['channel_id'])        #sort by channel id
-    print(len(channel_list))
-    print(len(new_channel_list))
-    with open("allChannels.json", "w") as channel_list_file:
-        json.dump(new_channel_list, channel_list_file)
+    with open("allCh.json", "w") as channel_list_file:
+        json.dump(clist, channel_list_file)
+        print("Saving " + str(len(clist)) + " to file " + channel_list_file.name)
         channel_list_file.close()
 
 
-def processChnuks(channel_list):
-    try:
-        for channel in channel_list:
-            print("Getting channelId:{}".format(channel.get('id', '')))
-            channel_id = str(channel.get('id', ''))
-            getChannelInfo(channel_id)
-    except:
-        print("exception on channel id " + str(channel.get('id', '')))
-
-
-def getAllChannels():
-    ts = []
-    url = API_BASE_URL + "content-detail/pub/api/v1/channels?limit=585"
-    x = requests.get(url)
-    channel_list = x.json()['data']['list']
-    print("Total Channels fetched:", len(channel_list))
-    print("Fetching channel info..........")
-    for i in range(len(channel_list)):
-        t = threading.Thread(target=processChnuks, args=([channel_list[i:i + 1]]))
-        ts.append(t)
-        t.start()
-    for t in ts:
-        t.join()
-    print("Saving all to a file.... " + str(len(channel_list)))
+async def getchannels():
+    channel_list = []
+    #num = input("Enter total channel number: ")
+    url = API_BASE_URL + "content-detail/pub/api/v1/channels?limit=586" #+ num
+    resp = requests.get(url)
+    channellist = resp.json()['data']['list']
+    for item in channellist:
+        #chnlid = str(item["id"])
+        chnlid = item["id"]
+        channel_list.append(chnlid)
+    print("Total channels... " + str(len(channel_list)))
+    
+    async with ClientSession() as session:
+        data = await asyncio.gather(*[getChunks(channel, session) for channel in channel_list])
+        for item in data:
+            if item is not None:
+                clist.append(item)
+    #print("Saving " + str(len(clist)) + " to file...")
     saveChannelsToFile()
-
-
-if __name__ == '__main__':
-    getAllChannels()
+    
+    
+if __name__=='__main__':
+    #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(getchannels())
+    print("Completed in - %s seconds" % (time.time() - start_time))
