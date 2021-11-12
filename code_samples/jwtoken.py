@@ -1,6 +1,9 @@
 from constants import API_BASE_URL
 import requests
 import json
+import asyncio
+import aiohttp
+from aiohttp import ClientSession
 
 
 # This method gets the userDetails from the userDetails file and returns it as a dictionary
@@ -20,32 +23,17 @@ def getChannelList():
 # This method will generate a jwt based on the supplied channelId
 # It involves sending a post request to a specific endpoint with some headers and params
 # The token expires in a day
-def generateJWT(channelId, iterative=True):
+async def generateJWT(sem, channelId, session):
     url = API_BASE_URL + "auth-service/v1/oauth/token-service/token"
     payload = json.dumps(getPayloadForJWT(channelId))
     headers = getHeaders()
-    x = requests.request("POST", url, headers=headers, data=payload)
-
-    if x.status_code == 200:
-        msg = x.json()['message']
-        if msg == 'OAuth Token Generated Successfully':
-            # doesn't print the msg in iterative state
-            s = msg + " for channelId: " + str(channelId)
-            if iterative:
-                print(s)
-
-            token = x.json()['data']['token']
-            tokenMsg = "Token:" + token
-            if iterative:
-                print(tokenMsg)
-            return token
-        else:
-            print(msg)
-            return ""
-    else:
-        print("Response:", x.text)
-        print("Could not generate JWT for channelId:", channelId)
-        return ""
+    try:
+        resp = await session.request(method='POST', url=url, headers=headers, data=payload)
+    except Exception as err:
+        print(f"An error ocurred: {err}")
+    
+    response_json = await resp.json()
+    return response_json
 
 
 # This method will get the payload needed for the jwt generation
@@ -119,5 +107,6 @@ def getHeaders():
 
 
 if __name__ == '__main__':
+    #asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     channel_id = str(input("Enter the channelId for which you want to generate the token"))
-    generateJWT(channel_id)
+    asyncio.run(generateJWT(channel_id))
