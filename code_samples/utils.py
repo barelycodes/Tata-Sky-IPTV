@@ -22,7 +22,8 @@ def m3u_from_response(response, channel):
             print("Didn't get license for channel: Id: {0} Name:{1}".format(channel['channel_id'],
                                                                             channel['channel_name']))
             print('Continuing...Please get license manually for channel :', channel['channel_name'])
-        m3ustr += "#EXTINF:-1  " + "tvg-id=ts" + channel['channel_id'] + "  tvg-logo=" + channel['channel_logo'] + "   group-title=" + channel['channel_genre'][0] + ",   "
+        #m3ustr += "#EXTINF:-1  " + "tvg-id=ts" + channel['channel_id'] + "  tvg-logo=" + channel['channel_logo'] + "   group-title=" + channel['channel_genre'][0] + ",   "
+        m3ustr += "#EXTINF:-1  " + "tvg-id=ts" + channel['channel_id'] + "  tvg-logo=" + channel['channel_logo'] + "   group-title=" + '"' + channel['channel_genre'] + '"' + ",   "
         m3ustr += channel['channel_name'] + "\n" + kodiPropLicenseType + "\n" + kodiPropLicenseUrl + "\n" + channel['channel_url'] + "\n\n"
         #print(channel['channel_id'])
         return m3ustr
@@ -38,7 +39,7 @@ async def processTokenChunks(sem, channel, session):
 
 
 async def m3ugen():
-    tc = '#EXTM3U    x-tvg-url="http://botallen.live/epg.xml.gz" \n\n'
+    tc = '#EXTM3U    x-tvg-url="http://www.tsepg.cf/epg.xml.gz" \n\n'
     
     channelList = jwtoken.getUserChannelSubscribedList()
     #print("Found total {0} channels subscribed by user".format(len(channelList)))
