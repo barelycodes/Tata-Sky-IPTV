@@ -16,24 +16,28 @@ def extract_fields_from_response(response, channel):
     data_meta = response.get('data')['meta']
     channel_meta = response.get('data')['channelMeta']
     channel_detail_dict = response.get('data')['detail']
+    channel_genre = response.get('data')['channelMeta']['genre']
+    channel_lang = channel.get('subTitles')
+    channelgenre = channel_lang + channel_genre
     
     if data_meta:
         onechannel = {
-            "channel_id": str(channel),
-            "channel_name": channel_meta.get('name', ''),
-            "channel_license_url": channel_detail_dict.get('dashWidewineLicenseUrl', ''),
-            "channel_url": channel_detail_dict.get('dashWidewinePlayUrl', ''),
-            "channel_entitlements": channel_detail_dict.get('entitlements', ''),
-            "channel_logo": channel_meta.get('logo', ''),
-            "channel_genre": channel_meta.get('genre', '')
+            "channel_id": str(channel.get('id')),
+            "channel_name": channel_meta.get('name'),
+            "channel_license_url": channel_detail_dict.get('dashWidewineLicenseUrl'),
+            "channel_url": channel_detail_dict.get('dashWidewinePlayUrl'),
+            "channel_entitlements": channel_detail_dict.get('entitlements'),
+            "channel_logo": channel_meta.get('logo'),
+            "channel_genre": ";".join(f"{genre}" for genre in channelgenre)
         }
         return (onechannel)
     else:
-        print("Exception on Channel " + str(channel))
+        print("Exception on Channel " + str(channel.get("id")))
         
 
 async def getchannelinfo(channel, session):
-    url = "{}content-detail/pub/api/v2/channels/{}".format(API_BASE_URL, channel)
+    channelId = str(channel.get('id'))
+    url = "{}content-detail/pub/api/v2/channels/{}".format(API_BASE_URL, channelId)
     try:
         response = await session.request(method='GET', url=url)
         #response.raise_for_status()
@@ -62,19 +66,19 @@ def saveChannelsToFile():
 
 
 async def getchannels():
-    channel_list = []
+    #channel_list = []
     #num = input("Enter total channel number: ")
     url = API_BASE_URL + "content-detail/pub/api/v1/channels?limit=586" #+ num
     resp = requests.get(url)
     channellist = resp.json()['data']['list']
-    for item in channellist:
+    #for item in channellist:
         #chnlid = str(item["id"])
-        chnlid = item["id"]
-        channel_list.append(chnlid)
-    print("Total channels... " + str(len(channel_list)))
+        #chnlid = item["id"]
+        #channel_list.append(chnlid)
+    print("Total channels... " + str(len(channellist)))
     
     async with ClientSession() as session:
-        data = await asyncio.gather(*[getChunks(channel, session) for channel in channel_list])
+        data = await asyncio.gather(*[getChunks(channel, session) for channel in channellist])
         for item in data:
             if item is not None:
                 clist.append(item)
